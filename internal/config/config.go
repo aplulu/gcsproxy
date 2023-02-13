@@ -11,6 +11,7 @@ type Config struct {
 	Port                     string `envconfig:"port" default:"8080"`
 	GoogleCloudStorageBucket string `envconfig:"google_cloud_storage_bucket"`
 	MainPageSuffix           string `envconfig:"main_page_suffix" default:"index.html"`
+	NotFoundPage             string `envconfig:"not_found_page"`
 }
 
 var conf Config
@@ -38,4 +39,8 @@ func GoogleCloudStorageBucket() string {
 
 func MainPageSuffix() string {
 	return conf.MainPageSuffix
+}
+
+func NotFoundPage() string {
+	return conf.NotFoundPage
 }

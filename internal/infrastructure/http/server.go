@@ -38,24 +38,7 @@ func RunServer() error {
 
 		key = strings.TrimPrefix(key, "/")
 
-		obj := storageBucket.Object(key)
-		attrs, err := obj.Attrs(ctx)
-		if err != nil {
-			responseError(w, err)
-			return
-		}
-
-		r, err := obj.NewReader(ctx)
-		if err != nil {
-			responseError(w, err)
-			return
-		}
-
-		writeHeaders(w, attrs, r.Attrs)
-
-		if _, err := io.Copy(w, r); err != nil {
-			log.Printf("http.RunServer: failed to copy content: %v\n", err)
-		}
+		serveFile(ctx, storageBucket, key, w)
 	})
 
 	server = http.Server{
@@ -68,6 +51,32 @@ func RunServer() error {
 	}
 
 	return nil
+}
+
+func serveFile(ctx context.Context, storageBucket *storage.BucketHandle, key string, w http.ResponseWriter) {
+	obj := storageBucket.Object(key)
+	attrs, err := obj.Attrs(ctx)
+	if err != nil {
+		// fallback to Not Found Page
+		if errors.Is(err, storage.ErrObjectNotExist) && len(config.NotFoundPage()) > 0 && key != config.NotFoundPage() {
+			serveFile(ctx, storageBucket, config.NotFoundPage(), w)
+			return
+		}
+		responseError(w, err)
+		return
+	}
+
+	r, err := obj.NewReader(ctx)
+	if err != nil {
+		responseError(w, err)
+		return
+	}
+
+	writeHeaders(w, attrs, r.Attrs)
+
+	if _, err := io.Copy(w, r); err != nil {
+		log.Printf("http.RunServer: failed to copy content: %v\n", err)
+	}
 }
 
 func writeHeaders(w http.ResponseWriter, attrs *storage.ObjectAttrs, attrs2 storage.ReaderObjectAttrs) {
