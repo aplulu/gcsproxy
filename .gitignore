@@ -1,0 +1,4 @@
+.idea
+.env
+.gcloud/*.json
+tmp
