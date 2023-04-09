@@ -14,6 +14,12 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/aplulu/gcsproxy/internal/config"
+	"github.com/aplulu/gcsproxy/internal/infrastructure/http/middleware"
+	appHttp "github.com/aplulu/gcsproxy/internal/interface/http"
+)
+
+const (
+	gcsProxyPathPrefix = "/_gcsproxy"
 )
 
 var server http.Server
@@ -28,7 +34,34 @@ func RunServer() error {
 
 	httpMux := chi.NewRouter()
 
+	// OpenID Connect
+	if config.OIDCEnable() {
+		if err := config.ValidateOIDC(); err != nil {
+			return fmt.Errorf("http.RunServer: invalid OIDC config: %w", err)
+		}
+
+		httpMux.Use(middleware.AuthWithConfig(middleware.AuthConfig{
+			CookieName:  "_gpsa",
+			Issuer:      config.BaseURL(),
+			Audience:    config.BaseURL(),
+			SecretKey:   config.JWTSecret(),
+			RedirectURL: config.BaseURL() + gcsProxyPathPrefix + "/oidc/login",
+			Skipper: func(r *http.Request) bool {
+				return strings.HasPrefix(r.URL.Path, gcsProxyPathPrefix)
+			},
+		}))
+
+		authMux := chi.NewRouter()
+		appHttp.Register(authMux)
+		httpMux.Mount(gcsProxyPathPrefix+"/oidc", authMux)
+	}
+
 	httpMux.Get("/*", func(w http.ResponseWriter, req *http.Request) {
+		if strings.HasPrefix(req.URL.Path, gcsProxyPathPrefix) {
+			http.NotFound(w, req)
+			return
+		}
+
 		ctx := req.Context()
 
 		key := req.URL.Path
@@ -72,20 +105,27 @@ func serveFile(ctx context.Context, storageBucket *storage.BucketHandle, key str
 		return
 	}
 
-	writeHeaders(w, attrs, r.Attrs)
+	// write headers
+	writeHeaders(w, attrs)
 
 	if _, err := io.Copy(w, r); err != nil {
 		log.Printf("http.RunServer: failed to copy content: %v\n", err)
 	}
 }
 
-func writeHeaders(w http.ResponseWriter, attrs *storage.ObjectAttrs, attrs2 storage.ReaderObjectAttrs) {
+func writeHeaders(w http.ResponseWriter, attrs *storage.ObjectAttrs) {
 	writeStringHeader(w, "Last-Modified", attrs.Updated.Format(http.TimeFormat))
 	writeStringHeader(w, "Content-Type", attrs.ContentType)
 	writeInt64Header(w, "Content-Length", attrs.Size)
 	writeStringHeader(w, "Content-Encoding", attrs.ContentEncoding)
 	writeStringHeader(w, "Content-Disposition", attrs.ContentDisposition)
-	writeStringHeader(w, "Cache-Control", attrs.CacheControl)
+
+	// do not proxy cache if OIDC is enabled
+	if config.OIDCEnable() {
+		writeStringHeader(w, "Cache-Control", "private, max-age=60")
+	} else {
+		writeStringHeader(w, "Cache-Control", attrs.CacheControl)
+	}
 }
 
 func responseError(w http.ResponseWriter, err error) {
