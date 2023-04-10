@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -30,7 +29,7 @@ func main() {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		if err := http.StopServer(shutdownCtx); err != nil {
-			log.Println(fmt.Sprintf("command.ServeCommand: failed to stop server: %+v", err))
+			log.Printf("command.ServeCommand: failed to stop server: %+v\n", err)
 			os.Exit(1)
 			return
 		}
@@ -38,7 +37,7 @@ func main() {
 
 	log.Println("Starting server...")
 	if err := http.RunServer(); err != nil {
-		log.Println(fmt.Sprintf("command.ServeCommand: failed to start server: %+v", err))
+		log.Printf("command.ServeCommand: failed to start server: %+v\n", err)
 		os.Exit(1)
 	}
 }

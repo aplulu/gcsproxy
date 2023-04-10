@@ -1,0 +1,98 @@
+name: GCSProxy CI
+
+on:
+  push:
+    branches:
+      - "**"
+      - "!main"
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
+  release:
+    types:
+      - published
+  workflow_dispatch:
+
+jobs:
+  setup-env:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup
+        id: setup
+        run: |
+          echo "Branch: ${{ github.ref }}"
+          if [[ "${{ github.ref }}" =~ ^refs/tags/v.*$ ]]; then
+            echo "env=prd" >> $GITHUB_OUTPUT
+            echo "${{ github.ref }}" | cut -d / -f 3 | echo "version=$(cat)" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" = "main" ]; then
+            echo "env=dev" >> $GITHUB_OUTPUT
+          else
+            echo "env=unknown" >> $GITHUB_OUTPUT
+          fi
+      - name: Information
+        run: |
+          echo "Branch: ${{ github.ref }}"
+          echo "Deploying: ${{ steps.setup.outputs.env }}"
+    outputs:
+      env: ${{ steps.setup.outputs.env }}
+      version: ${{ steps.setup.outputs.version }}
+  test:
+    runs-on: ubuntu-latest
+    needs: setup-env
+    if: github.event_name == 'push' && needs.setup-env.outputs.env == 'unknown'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Go Version
+        run: printf "go_version=%s" $(cat .go-version) >> $GITHUB_ENV
+      - name: Setup Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.go_version }}
+      - name: Download Go modules
+        run: go mod download
+      - name: Run go vet
+        run: go vet ./...
+      - name: Run go test
+        run: go test -v ./...
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.50
+  build:
+    runs-on: ubuntu-latest
+    needs: setup-env
+    if: needs.setup-env.outputs.env == 'dev' || needs.setup-env.outputs.env == 'prd'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Docker Login
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build (dev)
+        if: needs.setup-env.outputs.env == 'dev'
+        env:
+          DOCKER_BUILDKIT: 1
+        run: |
+          docker build \
+            -t ghcr.io/$GITHUB_REPOSITORY:${{ github.sha }} \
+            -f docker/app/Dockerfile \
+            .
+      - name: Build (release)
+        if: needs.setup-env.outputs.env == 'prd'
+        env:
+          DOCKER_BUILDKIT: 1
+        run: |
+          docker build \
+            -t ghcr.io/$GITHUB_REPOSITORY:${{ github.sha }} \
+            -t ghcr.io/$GITHUB_REPOSITORY:${{ needs.setup-env.outputs.version }} \
+            -t ghcr.io/$GITHUB_REPOSITORY:latest \
+            -f docker/app/Dockerfile \
+            .
+      - name: Push the container image to GitHub Container Registry
+        run: docker push -a ghcr.io/$GITHUB_REPOSITORY

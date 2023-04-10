@@ -91,11 +91,15 @@ func ParseAccessToken(accessToken string, issuer string, audience string, secret
 		return nil, fmt.Errorf("accesstoken.ParseAccessToken: failed to convert access token")
 	}
 
+	var found bool
 	for _, v := range claims.Audience {
 		if subtle.ConstantTimeCompare([]byte(v), []byte(audience)) == 1 {
+			found = true
 			break
 		}
-		return nil, fmt.Errorf("accesstoken.ParseAccessToken: invalid audience: %s", ErrInvalidAudience)
+	}
+	if !found {
+		return nil, fmt.Errorf("accesstoken.ParseAccessToken: invalid audience: %w", ErrInvalidAudience)
 	}
 
 	if subtle.ConstantTimeCompare([]byte(claims.Issuer), []byte(issuer)) == 0 {
