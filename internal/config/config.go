@@ -13,7 +13,7 @@ type Config struct {
 	MainPageSuffix           string   `envconfig:"main_page_suffix" default:"index.html"`
 	NotFoundPage             string   `envconfig:"not_found_page" default:""`
 	BaseURL                  string   `envconfig:"base_url" default:""`
-	OIDCEnable               bool     `envconfig:"oidc_enable" default:"false"`
+	AuthType                 string   `envconfig:"auth_type" default:"none"`
 	OIDCIssuer               string   `envconfig:"oidc_issuer" default:""`
 	OIDCScopes               []string `envconfig:"oidc_scopes" default:"openid"`
 	OIDCAuthorizeURL         string   `envconfig:"oidc_authorize_url" default:""`
@@ -22,6 +22,8 @@ type Config struct {
 	OIDCClientSecret         string   `envconfig:"oidc_client_secret" default:""`
 	JWTExpiration            int64    `envconfig:"jwt_expiration" default:"3600"`
 	JWTSecret                string   `envconfig:"jwt_secret"`
+	BasicAuthUser            string   `envconfig:"basic_auth_user" default:""`
+	BasicAuthPassword        string   `envconfig:"basic_auth_password" default:""`
 }
 
 var conf Config
@@ -60,8 +62,8 @@ func BaseURL() string {
 	return conf.BaseURL
 }
 
-func OIDCEnable() bool {
-	return conf.OIDCEnable
+func AuthType() string {
+	return conf.AuthType
 }
 
 func OIDCIssuer() string {
@@ -96,8 +98,16 @@ func JWTSecret() string {
 	return conf.JWTSecret
 }
 
+func BasicAuthUser() string {
+	return conf.BasicAuthUser
+}
+
+func BasicAuthPassword() string {
+	return conf.BasicAuthPassword
+}
+
 func ValidateOIDC() error {
-	if !OIDCEnable() {
+	if AuthType() != "oidc" {
 		return nil
 	}
 
@@ -127,6 +137,22 @@ func ValidateOIDC() error {
 
 	if BaseURL() == "" {
 		return fmt.Errorf("config.ValidateOIDC: BASE_URL is required")
+	}
+
+	return nil
+}
+
+func ValidateBasicAuth() error {
+	if AuthType() != "basic" {
+		return nil
+	}
+
+	if BasicAuthUser() == "" {
+		return fmt.Errorf("config.ValidateBasicAuth: BASIC_AUTH_USER is required")
+	}
+
+	if BasicAuthPassword() == "" {
+		return fmt.Errorf("config.ValidateBasicAuth: BASIC_AUTH_PASSWORD is required")
 	}
 
 	return nil

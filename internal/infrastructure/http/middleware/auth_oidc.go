@@ -7,8 +7,8 @@ import (
 	"github.com/aplulu/gcsproxy/pkg/accesstoken"
 )
 
-// AuthConfig is the configuration for the Auth middleware.
-type AuthConfig struct {
+// AuthOIDCConfig is the configuration for the Auth middleware.
+type AuthOIDCConfig struct {
 	CookieName  string
 	Issuer      string
 	Audience    string
@@ -17,8 +17,8 @@ type AuthConfig struct {
 	Skipper     Skipper
 }
 
-// AuthWithConfig returns a middleware that authenticates requests.
-func AuthWithConfig(conf AuthConfig) Middleware {
+// AuthOIDCWithConfig returns a middleware that authenticates requests.
+func AuthOIDCWithConfig(conf AuthOIDCConfig) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if conf.Skipper != nil && conf.Skipper(r) {
