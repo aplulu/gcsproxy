@@ -35,12 +35,12 @@ func RunServer() error {
 	httpMux := chi.NewRouter()
 
 	// OpenID Connect
-	if config.OIDCEnable() {
+	if config.AuthType() == "oidc" {
 		if err := config.ValidateOIDC(); err != nil {
 			return fmt.Errorf("http.RunServer: invalid OIDC config: %w", err)
 		}
 
-		httpMux.Use(middleware.AuthWithConfig(middleware.AuthConfig{
+		httpMux.Use(middleware.AuthOIDCWithConfig(middleware.AuthOIDCConfig{
 			CookieName:  "_gpsa",
 			Issuer:      config.BaseURL(),
 			Audience:    config.BaseURL(),
@@ -54,6 +54,18 @@ func RunServer() error {
 		authMux := chi.NewRouter()
 		appHttp.Register(authMux)
 		httpMux.Mount(gcsProxyPathPrefix+"/oidc", authMux)
+	} else if config.AuthType() == "basic" { // Basic Auth
+		if err := config.ValidateBasicAuth(); err != nil {
+			return fmt.Errorf("http.StartServer: invalid Basic Auth config: %w", err)
+		}
+
+		httpMux.Use(middleware.AuthBasicWithConfig(middleware.AuthBasicConfig{
+			User:     config.BasicAuthUser(),
+			Password: config.BasicAuthPassword(),
+			Skipper: func(r *http.Request) bool {
+				return strings.HasPrefix(r.URL.Path, gcsProxyPathPrefix)
+			},
+		}))
 	}
 
 	httpMux.Get("/*", func(w http.ResponseWriter, req *http.Request) {
@@ -120,8 +132,8 @@ func writeHeaders(w http.ResponseWriter, attrs *storage.ObjectAttrs) {
 	writeStringHeader(w, "Content-Encoding", attrs.ContentEncoding)
 	writeStringHeader(w, "Content-Disposition", attrs.ContentDisposition)
 
-	// do not proxy cache if OIDC is enabled
-	if config.OIDCEnable() {
+	// do not cache if authentication is enabled
+	if config.AuthType() == "oidc" || config.AuthType() == "basic" {
 		writeStringHeader(w, "Cache-Control", "private, max-age=60")
 	} else {
 		writeStringHeader(w, "Cache-Control", attrs.CacheControl)
