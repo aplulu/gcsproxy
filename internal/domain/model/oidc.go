@@ -19,29 +19,38 @@ type IDTokenClaims struct {
 	Sub string `json:"sub"`
 }
 
+var oidcProvider *oidc.Provider
 var oidcVerifier *oidc.IDTokenVerifier
 
 // GetOIDCConfig returns OIDC config
 func GetOIDCConfig(ctx context.Context) (*oauth2.Config, error) {
 	if oidcVerifier == nil {
-		provider, err := oidc.NewProvider(ctx, config.OIDCIssuer())
+		var err error
+		oidcProvider, err = oidc.NewProvider(ctx, config.OIDCProvider())
 		if err != nil {
 			return nil, err
 		}
-		oidcVerifier = provider.Verifier(&oidc.Config{
+		oidcVerifier = oidcProvider.Verifier(&oidc.Config{
 			ClientID: config.OIDCClientID(),
 		})
+	}
+
+	var endpoint oauth2.Endpoint
+	if config.OIDCAuthorizeURL() != "" && config.OIDCTokenURL() != "" {
+		endpoint = oauth2.Endpoint{
+			AuthURL:  config.OIDCAuthorizeURL(),
+			TokenURL: config.OIDCTokenURL(),
+		}
+	} else {
+		endpoint = oidcProvider.Endpoint()
 	}
 
 	return &oauth2.Config{
 		ClientID:     config.OIDCClientID(),
 		ClientSecret: config.OIDCClientSecret(),
-		Endpoint: oauth2.Endpoint{
-			AuthURL:  config.OIDCAuthorizeURL(),
-			TokenURL: config.OIDCTokenURL(),
-		},
-		RedirectURL: config.BaseURL() + "/_gcsproxy/oidc/callback",
-		Scopes:      config.OIDCScopes(),
+		Endpoint:     endpoint,
+		RedirectURL:  config.BaseURL() + "/_gcsproxy/oidc/callback",
+		Scopes:       config.OIDCScopes(),
 	}, nil
 }
 
