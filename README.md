@@ -27,12 +27,12 @@ TODO...
 | `BASIC_AUTH_USERNAME`         | Basic authentication username<br/>*Required only if auth type is `basic`* | `""`           |
 | `BASIC_AUTH_PASSWORD`         | Basic authentication password<br/>*Required only if auth type is `basic`* | `""`           |
 | `BASE_URL`                    | Base URL<br/>*Required only if auth type is `oidc`*                       | `""`           |
-| `OIDC_ISSUER`                 | OIDC issuer URL<br/>*Required only if auth type is `oidc`*                | `""`           |
+| `OIDC_PROVIDER`               | OIDC Provider URL<br/>*Required only if auth type is `oidc`*              | `"https://accounts.google.com"`           |
 | `OIDC_SCOPES`                 | OIDC scopes (comma separated)<br/>*Required only if auth type is `oidc`*  | `"openid"`     |
 | `OIDC_CLIENT_ID`              | OIDC client ID<br/>*Required only if auth type is `oidc`*                 | `""`           |
 | `OIDC_CLIENT_SECRET`          | OIDC client secret<br/>*Required only if auth type is `oidc`*             | `""`           |
-| `OIDC_AUTHORIZATION_URL`      | OIDC authorization URL<br/>*Required only if auth type is `oidc`*         | `""`           |
-| `OIDC_TOKEN_URL`              | OIDC token URL<br/>*Required only if auth type is `oidc`*                 | `""`           |
+| `OIDC_AUTHORIZATION_URL`      | OIDC authorization URL         | `""`           |
+| `OIDC_TOKEN_URL`              | OIDC token URL                 | `""`           |
 | `JWT_SECRET`                  | JWT secret key<br/>*Required only if auth type is `oidc`*                 | `""`           |
 | `JWT_EXPIRATION`              | JWT expiration (second)<br/>*Required only if auth type is `oidc`*        | `3600`         |
 

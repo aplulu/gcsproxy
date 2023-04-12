@@ -14,7 +14,7 @@ type Config struct {
 	NotFoundPage             string   `envconfig:"not_found_page" default:""`
 	BaseURL                  string   `envconfig:"base_url" default:""`
 	AuthType                 string   `envconfig:"auth_type" default:"none"`
-	OIDCIssuer               string   `envconfig:"oidc_issuer" default:""`
+	OIDCProvider             string   `envconfig:"oidc_provider" default:"https://accounts.google.com"`
 	OIDCScopes               []string `envconfig:"oidc_scopes" default:"openid"`
 	OIDCAuthorizeURL         string   `envconfig:"oidc_authorize_url" default:""`
 	OIDCTokenURL             string   `envconfig:"oidc_token_url" default:""`
@@ -66,8 +66,8 @@ func AuthType() string {
 	return conf.AuthType
 }
 
-func OIDCIssuer() string {
-	return conf.OIDCIssuer
+func OIDCProvider() string {
+	return conf.OIDCProvider
 }
 
 func OIDCAuthorizeURL() string {
@@ -111,16 +111,8 @@ func ValidateOIDC() error {
 		return nil
 	}
 
-	if OIDCIssuer() == "" {
-		return fmt.Errorf("config.ValidateOIDC: OIDC_ISSUER is required")
-	}
-
-	if OIDCAuthorizeURL() == "" {
-		return fmt.Errorf("config.ValidateOIDC: OIDC_AUTHORIZATION_URL is required")
-	}
-
-	if OIDCTokenURL() == "" {
-		return fmt.Errorf("config.ValidateOIDC: OIDC_TOKEN_URL is required")
+	if OIDCProvider() == "" {
+		return fmt.Errorf("config.ValidateOIDC: OIDC_PROVIDER is required")
 	}
 
 	if OIDCClientID() == "" {
