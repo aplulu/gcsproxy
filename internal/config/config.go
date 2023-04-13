@@ -15,11 +15,12 @@ type Config struct {
 	BaseURL                  string   `envconfig:"base_url" default:""`
 	AuthType                 string   `envconfig:"auth_type" default:"none"`
 	OIDCProvider             string   `envconfig:"oidc_provider" default:"https://accounts.google.com"`
-	OIDCScopes               []string `envconfig:"oidc_scopes" default:"openid"`
+	OIDCScopes               []string `envconfig:"oidc_scopes" default:"openid,profile,email"`
 	OIDCAuthorizeURL         string   `envconfig:"oidc_authorize_url" default:""`
 	OIDCTokenURL             string   `envconfig:"oidc_token_url" default:""`
 	OIDCClientID             string   `envconfig:"oidc_client_id" default:""`
 	OIDCClientSecret         string   `envconfig:"oidc_client_secret" default:""`
+	OIDCGoogleHostedDomain   string   `envconfig:"oidc_google_hosted_domain" default:""`
 	JWTExpiration            int64    `envconfig:"jwt_expiration" default:"3600"`
 	JWTSecret                string   `envconfig:"jwt_secret"`
 	BasicAuthUser            string   `envconfig:"basic_auth_user" default:""`
@@ -88,6 +89,10 @@ func OIDCClientID() string {
 
 func OIDCClientSecret() string {
 	return conf.OIDCClientSecret
+}
+
+func OIDCGoogleHostedDomain() string {
+	return conf.OIDCGoogleHostedDomain
 }
 
 func JWTExpiration() int64 {

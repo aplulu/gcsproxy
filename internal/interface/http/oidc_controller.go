@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"golang.org/x/oauth2"
 
 	"github.com/aplulu/gcsproxy/internal/config"
 	"github.com/aplulu/gcsproxy/internal/domain/model"
@@ -50,7 +51,15 @@ func (c *oidcController) Login(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   oidcSessionTTL,
 		HttpOnly: true,
 	})
-	http.Redirect(w, r, oc.AuthCodeURL(sess.State), http.StatusFound)
+
+	var authorizeURL string
+	if config.OIDCProvider() == "https://accounts.google.com" && config.OIDCGoogleHostedDomain() != "" {
+		authorizeURL = oc.AuthCodeURL(sess.State, oauth2.SetAuthURLParam("hd", config.OIDCGoogleHostedDomain()))
+	} else {
+		authorizeURL = oc.AuthCodeURL(sess.State)
+	}
+
+	http.Redirect(w, r, authorizeURL, http.StatusFound)
 }
 
 // Callback is the handler for the callback route.
