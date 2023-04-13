@@ -16,7 +16,8 @@ import (
 )
 
 type IDTokenClaims struct {
-	Sub string `json:"sub"`
+	Sub          string `json:"sub"`
+	HostedDomain string `json:"hd"`
 }
 
 var oidcProvider *oidc.Provider
@@ -61,7 +62,7 @@ func ExchangeOIDCToken(ctx context.Context, code string) (*IDTokenClaims, error)
 		return nil, fmt.Errorf("model.ExchangeOIDCToken: failed to retrive OAuth2 config: %w", err)
 	}
 
-	// アクセストークン取得
+	// Retrieve access token
 	token, err := oc.Exchange(ctx, code)
 	if err != nil {
 		return nil, fmt.Errorf("model.ExchangeOIDCToken: failed to exchange token: %w", err)
@@ -80,6 +81,13 @@ func ExchangeOIDCToken(ctx context.Context, code string) (*IDTokenClaims, error)
 	claims := new(IDTokenClaims)
 	if err := idToken.Claims(&claims); err != nil {
 		return nil, fmt.Errorf("model.ExchangeOIDCToken: failed to parse claims: %w", err)
+	}
+
+	// Validate Google Hosted Domain
+	if config.OIDCProvider() == "https://accounts.google.com" && config.OIDCGoogleHostedDomain() != "" {
+		if claims.HostedDomain != config.OIDCGoogleHostedDomain() {
+			return nil, fmt.Errorf("model.ExchangeOIDCToken: invalid hosted domain: %s: %w", claims.HostedDomain, ErrInvalidHostedDomain)
+		}
 	}
 
 	return claims, nil
