@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/aplulu/gcsproxy/internal/config"
+	"github.com/aplulu/gcsproxy/internal/domain/model"
 	"github.com/aplulu/gcsproxy/internal/infrastructure/http/middleware"
 	appHttp "github.com/aplulu/gcsproxy/internal/interface/http"
 )
@@ -117,35 +118,40 @@ func serveFile(ctx context.Context, storageBucket *storage.BucketHandle, key str
 		return
 	}
 
-	// write headers
-	writeHeaders(w, attrs)
+	// if file size is larger than 32MB, use chunked transfer encoding
+	if attrs.Size > 32*1024*1024 {
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			responseError(w, model.ErrStreamingUnsupported)
+			return
+		}
 
-	if _, err := io.Copy(w, r); err != nil {
-		log.Printf("http.RunServer: failed to copy content: %v\n", err)
-	}
-}
+		// write headers
+		writeHeaders(w, attrs, true)
 
-func writeHeaders(w http.ResponseWriter, attrs *storage.ObjectAttrs) {
-	writeStringHeader(w, "Last-Modified", attrs.Updated.Format(http.TimeFormat))
-	writeStringHeader(w, "Content-Type", attrs.ContentType)
-	writeInt64Header(w, "Content-Length", attrs.Size)
-	writeStringHeader(w, "Content-Encoding", attrs.ContentEncoding)
-	writeStringHeader(w, "Content-Disposition", attrs.ContentDisposition)
-
-	// do not cache if authentication is enabled
-	if config.AuthType() == "oidc" || config.AuthType() == "basic" {
-		writeStringHeader(w, "Cache-Control", "private, max-age=60")
+		buf := make([]byte, 32*1024)
+		for {
+			n, err := r.Read(buf)
+			if err != nil {
+				if err == io.EOF || err == context.Canceled {
+					break
+				}
+				log.Printf("http.RunServer: failed to read content: %v\n", err)
+				break
+			}
+			if _, err := w.Write(buf[:n]); err != nil {
+				log.Printf("http.RunServer: failed to write content: %v\n", err)
+				break
+			}
+			flusher.Flush()
+		}
 	} else {
-		writeStringHeader(w, "Cache-Control", attrs.CacheControl)
-	}
-}
+		// write headers
+		writeHeaders(w, attrs, false)
 
-func responseError(w http.ResponseWriter, err error) {
-	switch {
-	case errors.Is(err, storage.ErrObjectNotExist):
-		http.Error(w, "not found", http.StatusNotFound)
-	default:
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		if _, err := io.Copy(w, r); err != nil {
+			log.Printf("http.RunServer: failed to copy content: %v\n", err)
+		}
 	}
 }
 
